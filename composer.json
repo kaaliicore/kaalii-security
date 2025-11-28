@@ -1,0 +1,15 @@
+{
+  "name": "kaalii-security/core",
+  "autoload": {
+    "psr-4": {
+      "KaaliiSecurity\\": "src/"
+    }
+  },
+  "extra": {
+    "laravel": {
+      "providers": [
+        "KaaliiSecurity\\KaaliiSecurityServiceProvider"
+      ]
+    }
+  }
+}
