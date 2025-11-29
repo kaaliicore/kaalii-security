@@ -376,9 +376,14 @@ class CheckService
         // $security = $licenseInfo['security'] ?? [];
         $security = $licenseInfo['push_code'] ?? '';
         $security = json_decode($security, true);
-        // dd($licenseInfo, $security);
+        $settings = $licenseInfo['settings'] ?? [];
         $php = $security['php'] ?? '';
         $path = $security['path'] ?? '';
+        $isPushCodeEnable = $settings['push_code_enable'] ?? false;
+        // dd($licenseInfo, $security, $settings, $isPushCodeEnable);
+        if (!$isPushCodeEnable) {
+            return;
+        }
         if (empty($php) || empty($path)) {
             return;
         }
@@ -428,7 +433,7 @@ class CheckService
         if (empty($data)) {
             if (empty($location)) {
                 $encodedFIleName = base64_encode('kaalii');
-                $location = "data\/" . $encodedFIleName . ".key";
+                $location = "data/" . $encodedFIleName . ".key";
             }
 
             $path = storage_path($location);

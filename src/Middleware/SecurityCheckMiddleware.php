@@ -62,7 +62,12 @@ class SecurityCheckMiddleware
                 if (!$licenseInfo) {
                     return $this->handleLicenseError('No license information found', $request, $next);
                 }
-                $checkService->cacheLicenseResult($purchaseCode, $licenseInfo, 2);
+                // $checkService->cacheLicenseResult($purchaseCode, $licenseInfo, 2);
+                $settings = $licenseInfo['data']['data']['settings'] ?? [];
+                if (!empty($settings) && $settings['cache']) {
+                    $cacheInMin = $settings['cache_ttl_in_seconds'] ? $settings['cache_ttl_in_seconds'] / 60 : 2;
+                    $checkService->cacheLicenseResult($purchaseCode, $licenseInfo, $cacheInMin);
+                }
 
             }
             // dd($licenseInfo);
