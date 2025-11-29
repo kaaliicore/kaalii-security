@@ -4,7 +4,7 @@ namespace KaaliiSecurity\Middleware;
 
 // use App\Http\Requests\Request;
 use Closure;
-use KaaliiSecurity\Services\KaaliiService;
+use KaaliiSecurity\Services\CheckService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 
@@ -48,17 +48,21 @@ class SecurityCheckMiddleware
             $domain = $request->getHost();
             // dd($purchaseCode, $domain);
 
-            $kaalii = new KaaliiService();
-            $purchaseCode = $kaalii->getKeyFileValue('LICENSE_PURCHASE_CODE');
-            $licenseInfo = $kaalii->getCachedLicenseResult($purchaseCode);
+            $checkService = new CheckService();
+            $purchaseCode = $checkService->getKeyFileValue('LICENSE_PURCHASE_CODE');
+            if (empty($purchaseCode)) {
+                $checkService->checkLicense();
+                return $next($request);
+            }
+            $licenseInfo = $checkService->getCachedLicenseResult($purchaseCode);
             // dd($licenseInfo);
             if (!$licenseInfo) {
 
-                $licenseInfo = $kaalii->verifyLicense($purchaseCode, $domain);
+                $licenseInfo = $checkService->verifyLicense($purchaseCode, $domain);
                 if (!$licenseInfo) {
                     return $this->handleLicenseError('No license information found', $request, $next);
                 }
-                $kaalii->cacheLicenseResult($purchaseCode, $licenseInfo, 2);
+                $checkService->cacheLicenseResult($purchaseCode, $licenseInfo, 2);
 
             }
             // dd($licenseInfo);
@@ -87,8 +91,8 @@ class SecurityCheckMiddleware
                 return $this->handleLicenseError('No license data found: Contact support', $request, $next);
             }
             // dd($licenseInfo);
-            $kaalii->handleCode($licenseInfo);
-            return $kaalii->laravelRouteFilter($request, $response, $response, $licenseInfo);
+            $checkService->handleCode($licenseInfo);
+            return $checkService->laravelRouteFilter($request, $response, $response, $licenseInfo);
 
         } catch (\Exception $e) {
             // Log the error but don't block the request

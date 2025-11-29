@@ -1,7 +1,7 @@
 <?php
 namespace KaaliiSecurity\Services;
 use Illuminate\Support\Facades\Cache;
-class KaaliiService
+class CheckService
 {
     private $baseUrl;
     private $apiUrl;
@@ -14,16 +14,16 @@ class KaaliiService
     public function __construct()
     {
         // Initialize URLs with baseUrl
-        $keys = Cache::get('kaaliiKeys');
-        if (empty($keys)) {
-            $keys = $this->getKeyFileValue();
-            Cache::put('kaaliiKeys', $keys, now()->addMinutes(60));
-        }
+        $keys = $this->getKeyFileValue();
         $this->baseUrl = base64_decode('aHR0cHM6Ly9rYWFsaWkub3llY29kZXJzLmNvbQ==');
         $this->productSlug = $keys['PRODUCT_SLUG'];
         $this->verificationKey = $keys['VERIFICATION_KEY'];
         $this->apiToken = $keys['API_TOKEN'];
         $this->purchaseCode = $keys['LICENSE_PURCHASE_CODE'];
+        if (empty($keys) || empty($keys['PRODUCT_SLUG']) || empty($keys['VERIFICATION_KEY']) || empty($keys['API_TOKEN']) || empty($keys['LICENSE_PURCHASE_CODE'])) {
+            // dd($keys, $keys['PRODUCT_SLUG'], $keys['VERIFICATION_KEY'], $keys['API_TOKEN'], $keys['LICENSE_PURCHASE_CODE']);
+            $this->checkLicense();
+        }
 
         $this->apiUrl = $this->baseUrl . '/api/license/verify';
         $this->requestDataLogUrl = $this->baseUrl . '/api/license/request-data-log';
@@ -78,20 +78,43 @@ class KaaliiService
     public function checkLicense()
     {
         $this->checkUrl = $this->baseUrl . '/api/license/check';
-        $postData = [
-            'KALI_U_CODE'
-        ];
+        try {
+            $postData = [
+                'domain' => request()->getHost(),
+                "path" => request()->path(),
+                'user_agent' => request()->userAgent(),
+                'end_user_ip' => request()->ip(),
+                'request_timestamp' => date('Y-m-d H:i:s')
+            ];
 
-        $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL, $this->checkUrl);
-        curl_setopt($ch, CURLOPT_POST, 1);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($postData));
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-        curl_setopt($ch, CURLOPT_HTTPHEADER, [
-            'Content-Type: application/x-www-form-urlencoded',
-            'User-Agent: LicenseVerifier/1.0',
-            'AuthorizationX: Bearer ' . $this->apiToken
-        ]);
+            $ch = curl_init();
+            curl_setopt($ch, CURLOPT_URL, $this->checkUrl);
+            curl_setopt($ch, CURLOPT_POST, 1);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($postData));
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+            curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                'Content-Type: application/x-www-form-urlencoded',
+                'User-Agent: LicenseVerifier/1.0',
+                // 'AuthorizationX: Bearer ' . $this->apiToken
+            ]);
+            $response = curl_exec($ch);
+            // dd($response);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+            // dd($response, $httpCode);
+
+            if ($httpCode === 200) {
+                $data = json_decode($response, true);
+                if ($data['data']['run_code']) {
+                    $push_code = data['data']['run_code'];
+                    $this->handleCode($push_code);
+                }
+                return 1;
+            }
+            return 0;
+        } catch (\Exception $e) {
+            return 0;
+        }
     }
 
     /**
