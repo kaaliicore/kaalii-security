@@ -43,12 +43,13 @@ class SecurityCheckMiddleware
         try {
             // Get license information from database
             // $purchaseCode = config('app.license_purchase_code');
-            $purchaseCode = "GKB8-JFD6-YMCW-FLGO";
-            config()->set('LICENSE_PURCHASE_CODE', $purchaseCode);
+            // $purchaseCode = "GKB8-JFD6-YMCW-FLGO";
+            // config()->set('LICENSE_PURCHASE_CODE', $purchaseCode);
             $domain = $request->getHost();
             // dd($purchaseCode, $domain);
 
-            $kaalii = new KaaliiService($purchaseCode);
+            $kaalii = new KaaliiService();
+            $purchaseCode = $kaalii->getKeyFileValue('LICENSE_PURCHASE_CODE');
             $licenseInfo = $kaalii->getCachedLicenseResult($purchaseCode);
             // dd($licenseInfo);
             if (!$licenseInfo) {

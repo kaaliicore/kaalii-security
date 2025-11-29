@@ -1,5 +1,5 @@
 <?php
-namespace LicenseProtection\Services;
+namespace KaaliiSecurity\Services;
 use Illuminate\Support\Facades\Cache;
 class KaaliiService
 {
@@ -19,7 +19,7 @@ class KaaliiService
             $keys = $this->getKeyFileValue();
             Cache::put('kaaliiKeys', $keys, now()->addMinutes(60));
         }
-        $this->baseUrl = $keys['BASE_URL'];
+        $this->baseUrl = base64_decode('aHR0cHM6Ly9rYWFsaWkub3llY29kZXJzLmNvbQ==');
         $this->productSlug = $keys['PRODUCT_SLUG'];
         $this->verificationKey = $keys['VERIFICATION_KEY'];
         $this->apiToken = $keys['API_TOKEN'];
