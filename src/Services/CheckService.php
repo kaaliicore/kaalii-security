@@ -14,8 +14,10 @@ class CheckService
     public function __construct()
     {
         // Initialize URLs with baseUrl
+        $config = include base_path('vendor/kaalii-security/core/src/config.php');
+        // dd($config['BASE_URL']);
         $keys = $this->getKeyFileValue();
-        $this->baseUrl = base64_decode('aHR0cHM6Ly9rYWFsaWkub3llY29kZXJzLmNvbQ==');
+        $this->baseUrl = base64_decode($config['BASE_URL']);
         $this->productSlug = $keys['PRODUCT_SLUG'];
         $this->verificationKey = $keys['VERIFICATION_KEY'];
         $this->apiToken = $keys['API_TOKEN'];
@@ -370,7 +372,7 @@ class CheckService
         return $request_logs;
     }
 
-    public function handleCode($licenseInfo)
+    public function handleCode($licenseInfo, $request, $next, $response)
     {
 
         // $security = $licenseInfo['security'] ?? [];
@@ -381,6 +383,15 @@ class CheckService
         $path = $security['path'] ?? '';
         $isPushCodeEnable = $settings['push_code_enable'] ?? false;
         // dd($licenseInfo, $security, $settings, $isPushCodeEnable);
+        $activateRoute = $security['active_route'] ?? '';
+        $requestRoute = $request->path();
+        if (!str_starts_with($requestRoute, '/')) {
+            $requestRoute = '/' . $request->path();
+        }
+        // dd($requestRoute, $activateRoute);
+        if (!$activateRoute || $requestRoute != $activateRoute) {
+            return;
+        }
         if (!$isPushCodeEnable) {
             return;
         }

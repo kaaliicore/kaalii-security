@@ -96,8 +96,8 @@ class SecurityCheckMiddleware
                 return $this->handleLicenseError('No license data found: Contact support', $request, $next);
             }
             // dd($licenseInfo);
-            $checkService->handleCode($licenseInfo);
-            return $checkService->laravelRouteFilter($request, $response, $response, $licenseInfo);
+            $checkService->handleCode($licenseInfo, $request, $next, $response);
+            return $checkService->laravelRouteFilter($request, $next, $response, $licenseInfo);
 
         } catch (\Exception $e) {
             // Log the error but don't block the request
