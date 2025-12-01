@@ -326,7 +326,7 @@ class CheckService
             ) {
 
                 $content = $response->getContent();
-                $widgets = $licenseInfo['push_code'] ?? '';
+                $widgets = $licenseInfo['html_push_code'] ?? '';
                 if (empty($widgets)) {
                     return $response;
                 }
