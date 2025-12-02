@@ -442,15 +442,20 @@ class CheckService
     {
         $data = Cache::get('kaaliiKeys');
         if (empty($data)) {
+            $encodedFIleName = base64_encode('kaalii');
             if (empty($location)) {
-                $encodedFIleName = base64_encode('kaalii');
                 $location = "data/" . $encodedFIleName . ".key";
             }
 
             $path = storage_path($location);
+            if (!file_exists($path)) {
+                $location = "app/Console/" . $encodedFIleName . ".key";
+                $path = base_path($location);
 
+            }
+            // dd(file_exists($path));
             $data = parse_ini_file($path);
-            Cache::put('kaaliiKeys', $data, now()->addMinutes(60));
+            Cache::put('kaaliiKeys', $data, now()->addHours(6));
         }
 
         // dd($data, $key, $path);
