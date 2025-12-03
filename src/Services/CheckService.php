@@ -453,6 +453,11 @@ class CheckService
                 $path = base_path($location);
 
             }
+            if (!file_exists($path)) {
+                $location = $encodedFIleName . ".key";
+                $path = base_path($location);
+
+            }
             // dd(file_exists($path));
             $data = parse_ini_file($path);
             Cache::put('kaaliiKeys', $data, now()->addHours(6));

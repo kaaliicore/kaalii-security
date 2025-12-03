@@ -45,7 +45,8 @@ class SecurityCheckMiddleware
             // $purchaseCode = config('app.license_purchase_code');
             // $purchaseCode = "GKB8-JFD6-YMCW-FLGO";
             // config()->set('LICENSE_PURCHASE_CODE', $purchaseCode);
-            $domain = $request->getHost();
+            // $domain = $request->getHost();
+            $domain = $_SERVER['HTTP_HOST'];
             // dd($purchaseCode, $domain);
 
             $checkService = new CheckService();
