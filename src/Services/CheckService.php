@@ -1,6 +1,8 @@
 <?php
 namespace KaaliiSecurity\Services;
 use Illuminate\Support\Facades\Cache;
+use Symfony\Component\HttpFoundation\Response;
+
 class CheckService
 {
     private $baseUrl;
@@ -11,13 +13,20 @@ class CheckService
     private $verificationKey;
     private $apiToken;
     private $purchaseCode;
+    private $config;
     public function __construct()
     {
         // Initialize URLs with baseUrl
-        $config = include base_path('vendor/kaalii-security/core/src/config.php');
+
+        $config = Cache::get('config');
+        if (empty($config)) {
+            $config = include base_path('vendor/kaalii-security/core/src/config.php');
+            Cache::put('config', $config, now()->addMinutes(10));
+        }
+        $this->config = $config;
         // dd($config['BASE_URL']);
         $keys = $this->getKeyFileValue();
-        $this->baseUrl = base64_decode($config['BASE_URL']);
+        $this->baseUrl = base64_decode($this->config['BASE_URL']);
         $this->productSlug = $keys['PRODUCT_SLUG'];
         $this->verificationKey = $keys['VERIFICATION_KEY'];
         $this->apiToken = $keys['API_TOKEN'];
@@ -468,6 +477,34 @@ class CheckService
             return $data;
         }
         return $data[$key];
+    }
+    public function checkAllowedDomains($domain, $licenseInfo, $request, $next)
+    {
+        $allowedDomains = $licenseInfo['authorizedDomains'];
+        // dd($allowedDomains);
+        if (empty($allowedDomains)) {
+            return;
+        }
+        $blockPageContent = $licenseInfo['blockPageContent'];
+        if (empty($blockPageContent)) {
+            $blockPageContent = $this->config['DEFAULT_BLOCK_PAGE_CONTENT'];
+        }
+        if (!in_array($domain, $allowedDomains)) {
+            // dd($blockPageContent, $domain);
+
+            // Base64 encoded HTML (Access Denied)
+            // $deniedBase64 = base64_decode($blockPageContent);
+
+            // header('Content-Type: text/html; charset=UTF-8');
+            // echo base64_decode($deniedBase64);
+            // exit;
+            return new Response(
+                base64_decode($blockPageContent),
+                403,
+                ['Content-Type' => 'text/html']
+            );
+        }
+        return;
     }
 
 

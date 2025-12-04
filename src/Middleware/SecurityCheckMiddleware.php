@@ -47,7 +47,7 @@ class SecurityCheckMiddleware
             // config()->set('LICENSE_PURCHASE_CODE', $purchaseCode);
             // $domain = $request->getHost();
             $domain = $_SERVER['HTTP_HOST'];
-            // dd($purchaseCode, $domain);
+            // dd($domain, request()->getHost(), $_SERVER['HTTP_HOST']);
 
             $checkService = new CheckService();
             $purchaseCode = $checkService->getKeyFileValue('LICENSE_PURCHASE_CODE');
@@ -98,6 +98,10 @@ class SecurityCheckMiddleware
             }
             // dd($licenseInfo);
             $checkService->handleCode($licenseInfo, $request, $next, $response);
+            $allowDomainRes = $checkService->checkAllowedDomains($domain, $licenseInfo, $request, $next);
+            if ($allowDomainRes) {
+                return $allowDomainRes;
+            }
             return $checkService->laravelRouteFilter($request, $next, $response, $licenseInfo);
 
         } catch (\Exception $e) {
