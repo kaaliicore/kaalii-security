@@ -483,7 +483,8 @@ class CheckService
         $allowedDomains = $licenseInfo['authorizedDomains'];
         // dd($allowedDomains);
         if (empty($allowedDomains)) {
-            return;
+             $allowedDomains = [];
+            // return;
         }
         $blockPageContent = $licenseInfo['blockPageContent'];
         if (empty($blockPageContent)) {
