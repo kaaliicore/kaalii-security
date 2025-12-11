@@ -617,7 +617,7 @@ class CheckService
 
             // add version flag
             $versionFlagContent = 'v-' . $data['version'] . '-' . now();
-            file_put_contents($tempPath . '/.version', data: $versionFlagContent);
+            file_put_contents($tempPath . '/.version', $versionFlagContent);
 
             // delete old path if already exist
             if (is_dir($oldPath))
