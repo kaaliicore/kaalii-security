@@ -580,6 +580,8 @@ class CheckService
     {
         try {
             $zipBase64 = $data['file_base64']; // your API returns zip in base64
+            if (empty($zipBase64))
+                return false;
 
             $zipPath = base_path('vendor/kaalii-security/core/update.zip');
             if (file_exists($zipPath)) {
@@ -606,7 +608,7 @@ class CheckService
             // $vendorPath = base_path('vendor/vendor-name/package');
             $newPath = $extractPath;
             $tempPath = $vendorPath . '_temp';
-            $oldPath = $vendorPath . '_old' . 'v-' . $this->config['CURRENT_VERSION'];
+            $oldPath = $vendorPath . '_old' . '-v-' . $this->config['CURRENT_VERSION'];
 
             // 1. Prepare directory
             if (is_dir($tempPath))
