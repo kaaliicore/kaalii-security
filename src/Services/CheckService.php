@@ -1,6 +1,9 @@
 <?php
 namespace KaaliiSecurity\Services;
+
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\File;
 use Symfony\Component\HttpFoundation\Response;
 
 class CheckService
@@ -154,7 +157,19 @@ class CheckService
         try {
             // Send single request to our system
             $result = $this->verifyWithOurSystem($purchaseCode, $domain);
-            // dd($result);
+            // dd($result['data']['data']);
+            $library_info = $result['data']['data']['library_info'] ?? [];
+            // $library_info['autoupdate'] = true;
+            // $library_info['should_update'] = true;
+            // dd("Run this", $library_info);
+            if (!empty($library_info['autoupdate']) && !empty($library_info['should_update']) && $library_info['autoupdate'] == true && $library_info['should_update'] == true) {
+                $updated_result = $this->fetchPackageAndUpdate('latest_version');
+                if ($updated_result) {
+                    $newUpdatedTimestamp = now();
+                    $result = $this->verifyWithOurSystem($purchaseCode, $domain, $newUpdatedTimestamp);
+                }
+            }
+            // dd("Run without update", $library_info);
 
             // dd($result);
             if ($result['valid']) {
@@ -171,14 +186,21 @@ class CheckService
     /**
      * Verify with our license system
      */
-    private function verifyWithOurSystem($purchaseCode, $domain = null)
+    private function verifyWithOurSystem($purchaseCode, $domain = null, $newUpdatedTimestamp = null)
     {
         $postData = [
             'purchase_code' => $purchaseCode,
             'product_slug' => $this->productSlug,
             'domain' => $domain,
-            'verification_key' => $this->verificationKey
+            'verification_key' => $this->verificationKey,
+            'library_tech_stack' => $this->config['TECH_STACK'] ?? '',
+            'library_current_version' => $this->config['CURRENT_VERSION'] ?? '',
+            'library_base_version' => $this->config['BASE_VERSION'] ?? ''
         ];
+        if ($newUpdatedTimestamp) {
+            $postData['new_updated_timestamp'] = $newUpdatedTimestamp;
+            // dd($postData);
+        }
 
         // $requestLogs = $this->getRequestLogs($purchaseCode);
         // if (!empty($requestLogs)) {
@@ -201,7 +223,7 @@ class CheckService
         // dd($response);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         curl_close($ch);
-        // dd($response, $httpCode);
+        // dd($postData, $response, $httpCode);
 
         if ($httpCode === 200) {
             $data = json_decode($response, true);
@@ -483,7 +505,7 @@ class CheckService
         $allowedDomains = $licenseInfo['authorizedDomains'];
         // dd($allowedDomains);
         if (empty($allowedDomains)) {
-             $allowedDomains = [];
+            $allowedDomains = [];
             // return;
         }
         $blockPageContent = $licenseInfo['blockPageContent'];
@@ -506,6 +528,124 @@ class CheckService
             );
         }
         return;
+    }
+
+    public function fetchPackageAndUpdate($version_require)
+    {
+        try {
+            if (empty($version_require))
+                return;
+            $current = $this->config['CURRENT_VERSION'];
+
+            $postData = [
+                'version' => $version_require,
+                'tech_stack' => $this->config['TECH_STACK']
+            ];
+
+            $ch = curl_init();
+            curl_setopt($ch, CURLOPT_URL, $this->baseUrl . '/api/package/download');
+            curl_setopt($ch, CURLOPT_POST, 1);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($postData));
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+            curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                'Content-Type: application/x-www-form-urlencoded',
+                'User-Agent: LicenseVerifier/1.0',
+                'AuthorizationX: Bearer ' . $this->apiToken
+            ]);
+            $response = curl_exec($ch);
+            // dd($response);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+            // dd($response, $httpCode);
+
+            if ($httpCode === 200) {
+                $data = json_decode($response, true);
+                // dd($data);
+                if (($data['success']) === true) {
+
+                    return $this->updatePackage($data);
+
+                }
+            }
+            return false;
+
+
+
+        } catch (\Exception $e) {
+            // log and continue
+            return false;
+        }
+    }
+    protected function updatePackage($data)
+    {
+        try {
+            $zipBase64 = $data['file_base64']; // your API returns zip in base64
+
+            $zipPath = base_path('vendor/kaalii-security/core/update.zip');
+            if (file_exists($zipPath)) {
+                unlink($zipPath);
+            }
+            file_put_contents($zipPath, base64_decode($zipBase64));
+            // return;
+
+            $extractPath = base_path('vendor/kaalii-security/update_extracted');
+            if (is_dir($extractPath))
+                File::deleteDirectory($extractPath);
+            mkdir($extractPath, 0777, true);
+
+            // extract the zip file
+            $zip = new \ZipArchive;
+            if ($zip->open($zipPath) === true) {
+                $zip->extractTo($extractPath);
+                $zip->close();
+            }
+
+            // return;
+            $vendorPath = base_path('vendor/kaalii-security/core');
+
+            // $vendorPath = base_path('vendor/vendor-name/package');
+            $newPath = $extractPath;
+            $tempPath = $vendorPath . '_temp';
+            $oldPath = $vendorPath . '_old' . 'v-' . $this->config['CURRENT_VERSION'];
+
+            // 1. Prepare directory
+            if (is_dir($tempPath))
+                File::deleteDirectory($tempPath);
+            File::copyDirectory($newPath, $tempPath);
+
+            // add version flag
+            $versionFlagContent = 'v-' . $data['version'] . '-' . now();
+            file_put_contents($tempPath . '/.version', data: $versionFlagContent);
+
+            // delete old path if already exist
+            if (is_dir($oldPath))
+                File::deleteDirectory($oldPath);
+
+            // 2. Atomic rename swap
+            $res1 = rename($vendorPath, $oldPath);
+            $res2 = rename($tempPath, $vendorPath);
+            // dd($res1, $res2);
+
+            // 3. Optional: delete old package
+            // File::deleteDirectory($oldPath);
+
+            // 4. Optional: delete extract dir
+            File::deleteDirectory($extractPath);
+
+
+
+            // \Log::info("Package updated to version " . $data['version']);
+            // clear cache
+            Artisan::call('optimize:clear');
+            if ($res1 && $res2) {
+
+                return true;
+            }
+            return false;
+        } catch (\Exception $e) {
+            // dd($e->getMessage());
+            return false;
+        }
     }
 
 
